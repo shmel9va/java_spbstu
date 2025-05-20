@@ -1,9 +1,16 @@
 package com.example.lab.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Entity
+@Table(name = "tasks")
 public class Task {
+    @Id
     private String id;
     private String userId;
     private String title;
