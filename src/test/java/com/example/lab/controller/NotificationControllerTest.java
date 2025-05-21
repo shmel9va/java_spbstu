@@ -39,7 +39,7 @@ public class NotificationControllerTest {
     public void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(notificationController).build();
         
-        testNotification = new Notification(userId, "Тестовое уведомление");
+        testNotification = new Notification(userId, "task123","Тестовое уведомление");
         testNotification.setId("notification1");
         testNotification.setRead(false);
     }

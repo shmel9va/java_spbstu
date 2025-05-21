@@ -31,7 +31,7 @@ public class NotificationServiceTest {
 
     @BeforeEach
     public void setUp() {
-        testNotification = new Notification(userId, "Тестовое уведомление");
+        testNotification = new Notification(userId, "task123", "Тестовое уведомление");
         testNotification.setId("notification1");
         testNotification.setRead(false);
     }
@@ -77,7 +77,8 @@ public class NotificationServiceTest {
     public void createNotification_ValidData_ReturnsCreatedNotification() {
         when(notificationRepository.save(any(Notification.class))).thenReturn(testNotification);
 
-        Notification result = notificationService.createNotification(userId, "Тестовое уведомление");
+        Notification input = new Notification(userId, "task123", "Тестовое уведомление"); // 👈 taskId добавлен
+        Notification result = notificationService.createNotification(input);
 
         assertNotNull(result);
         assertEquals("Тестовое уведомление", result.getMessage());

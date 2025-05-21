@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Profile("database")
@@ -41,4 +42,10 @@ public class JpaTaskRepositoryAdapter implements TaskRepository {
             jpaTaskRepository.save(task);
         }
     }
+
+    @Override
+    public Optional<Task> findById(String id) {
+        return jpaTaskRepository.findById(id);
+    }
+
 }

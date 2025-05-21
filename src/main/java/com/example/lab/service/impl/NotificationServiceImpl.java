@@ -32,10 +32,9 @@ public class NotificationServiceImpl implements NotificationService {
     public void markNotificationAsRead(String id) {
         notificationRepository.markAsRead(id);
     }
-    
+
     @Override
-    public Notification createNotification(String userId, String message) {
-        Notification notification = new Notification(userId, message);
+    public Notification createNotification(Notification notification) {
         return notificationRepository.save(notification);
     }
 }
