@@ -1,11 +1,19 @@
 package com.example.lab.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Entity
+@Table(name = "notifications")
 public class Notification {
+    @Id
     private String id;
     private String userId;
+    private String taskId;
     private String message;
     private LocalDateTime creationDate;
     private boolean read;
@@ -16,9 +24,10 @@ public class Notification {
         this.read = false;
     }
 
-    public Notification(String userId, String message) {
+    public Notification(String userId, String taskId, String message) {
         this();
         this.userId = userId;
+        this.taskId = taskId;
         this.message = message;
     }
 
@@ -36,6 +45,14 @@ public class Notification {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getTaskId() {
+        return taskId;
+    }
+
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
     }
 
     public String getMessage() {
