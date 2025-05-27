@@ -1,4 +1,4 @@
-FROM gradle:8.4-jdk21 AS builder
+FROM gradle:8.4-jdk17 AS builder
 WORKDIR /workspace
 
 COPY . .
