@@ -1,5 +1,6 @@
 package com.example.lab.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -11,11 +12,17 @@ import java.util.UUID;
 @Table(name = "notifications")
 public class Notification {
     @Id
+    @Column(name = "id")
     private String id;
+    @Column(name = "user_id")
     private String userId;
+    @Column(name = "task_id")
     private String taskId;
+    @Column(name = "message")
     private String message;
+    @Column(name = "creation_date")
     private LocalDateTime creationDate;
+    @Column(name = "is_read")
     private boolean read;
 
     public Notification() {

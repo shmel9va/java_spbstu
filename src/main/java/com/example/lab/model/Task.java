@@ -1,5 +1,6 @@
 package com.example.lab.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -12,12 +13,19 @@ import java.util.UUID;
 public class Task {
     @Id
     private String id;
+    @Column(name = "user_id")
     private String userId;
+    @Column(name = "title")
     private String title;
+    @Column(name = "description")
     private String description;
+    @Column(name = "completed")
     private boolean completed;
+    @Column(name = "deleted")
     private boolean deleted;
+    @Column(name = "creation_date")
     private LocalDateTime creationDate;
+    @Column(name = "target_date")
     private LocalDateTime targetDate;
 
     public Task() {
