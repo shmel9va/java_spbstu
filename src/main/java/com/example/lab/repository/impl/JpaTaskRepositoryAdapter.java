@@ -7,6 +7,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +29,11 @@ public class JpaTaskRepositoryAdapter implements TaskRepository {
     @Override
     public List<Task> findPendingByUserId(String userId) {
         return jpaTaskRepository.findPendingByUserId(userId);
+    }
+    
+    @Override
+    public List<Task> findOverdueTasks(LocalDateTime now) {
+        return jpaTaskRepository.findOverdueTasks(now);
     }
     
     @Override

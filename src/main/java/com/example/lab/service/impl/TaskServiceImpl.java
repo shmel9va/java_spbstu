@@ -11,6 +11,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -36,6 +37,11 @@ public class TaskServiceImpl implements TaskService {
     @Cacheable(value = "pendingTasks", key = "#userId")
     public List<Task> getPendingTasksByUserId(String userId) {
         return taskRepository.findPendingByUserId(userId);
+    }
+
+    @Override
+    public List<Task> getOverdueTasks(LocalDateTime now) {
+        return taskRepository.findOverdueTasks(now);
     }
 
     @Override

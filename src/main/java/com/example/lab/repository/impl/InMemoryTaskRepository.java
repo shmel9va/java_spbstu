@@ -5,6 +5,7 @@ import com.example.lab.repository.TaskRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +29,14 @@ public class InMemoryTaskRepository implements TaskRepository {
     public List<Task> findPendingByUserId(String userId) {
         return tasks.values().stream()
                 .filter(task -> task.getUserId().equals(userId) && !task.isCompleted() && !task.isDeleted())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Task> findOverdueTasks(LocalDateTime now) {
+        return tasks.values().stream()
+                .filter(task -> !task.isCompleted() && !task.isDeleted() && 
+                        task.getTargetDate() != null && task.getTargetDate().isBefore(now))
                 .collect(Collectors.toList());
     }
 

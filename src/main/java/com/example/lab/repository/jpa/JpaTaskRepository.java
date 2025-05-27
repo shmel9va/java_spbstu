@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface JpaTaskRepository extends JpaRepository<Task, String> {
@@ -12,4 +13,7 @@ public interface JpaTaskRepository extends JpaRepository<Task, String> {
 
     @Query("SELECT t FROM Task t WHERE t.userId = :userId AND t.completed = false AND t.deleted = false")
     List<Task> findPendingByUserId(@Param("userId") String userId);
+    
+    @Query("SELECT t FROM Task t WHERE t.completed = false AND t.deleted = false AND t.targetDate < :now")
+    List<Task> findOverdueTasks(@Param("now") LocalDateTime now);
 }
