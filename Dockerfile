@@ -1,7 +1,7 @@
 FROM gradle:8.4-jdk21 AS builder
 WORKDIR /workspace
 
-COPY build.gradle settings.gradle gradlew gradle/ ./
+COPY build.gradle settings.gradle gradlew gradle gradle/wrapper ./
 RUN ./gradlew dependencies --no-daemon
 
 COPY . .
