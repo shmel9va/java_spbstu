@@ -10,9 +10,11 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=mysql
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     volumes:
       - app-data:/app/data
+    restart: on-failure
 
   mysql:
     image: mysql:8.0
@@ -24,6 +26,12 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   app-data:
