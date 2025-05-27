@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-@Profile("database")
+@Profile({"database", "mysql"})
 public class JpaTaskRepositoryAdapter implements TaskRepository {
     
     private final JpaTaskRepository jpaTaskRepository;

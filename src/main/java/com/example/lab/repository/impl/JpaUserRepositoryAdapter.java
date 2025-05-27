@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@Profile("database")
+@Profile({"database", "mysql"})
 public class JpaUserRepositoryAdapter implements UserRepository {
     
     private final JpaUserRepository jpaUserRepository;

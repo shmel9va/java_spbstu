@@ -8,9 +8,23 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=database
+      - SPRING_PROFILES_ACTIVE=mysql
+    depends_on:
+      - mysql
     volumes:
       - app-data:/app/data
 
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=taskmanager
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
 volumes:
   app-data:
+  mysql-data:
