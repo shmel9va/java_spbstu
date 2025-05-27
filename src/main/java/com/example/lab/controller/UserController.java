@@ -19,13 +19,43 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/login")
-    public ResponseEntity<User> login(@RequestParam String username, @RequestParam String password) {
-        User user = userService.login(username, password);
-        if (user != null) {
-            return ResponseEntity.ok(user);
+    @GetMapping("/{username}")
+    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
+        try {
+            User user = userService.getUserByUsername(username);
+            if (user != null) {
+                return ResponseEntity.ok(user);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PostMapping
+    public ResponseEntity<User> createUser(@RequestBody User user) {
+        try {
+            User createdUser = userService.createUser(user);
+            return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<User> login(@RequestParam String username, @RequestParam String password) {
+        try {
+            if (username == null || password == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            User user = userService.login(username, password);
+            if (user != null) {
+                return ResponseEntity.ok(user);
+            }
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @PostMapping("/register")

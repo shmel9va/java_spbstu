@@ -1,7 +1,7 @@
 package com.example.lab.service;
 
 import com.example.lab.model.Task;
-import com.example.lab.model.Notification;
+import com.example.lab.model.TaskEvent;
 import com.example.lab.repository.TaskRepository;
 import com.example.lab.service.impl.TaskServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,11 +12,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -27,13 +27,16 @@ public class TaskServiceTest {
     private TaskRepository taskRepository;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskEventProducer taskEventProducer;
 
     @InjectMocks
     private TaskServiceImpl taskService;
 
     private Task testTask;
+    private Task completedTask;
+    private Task deletedTask;
     private final String userId = "user123";
+    private final String anotherUserId = "user456";
 
     @BeforeEach
     public void setUp() {
@@ -43,25 +46,76 @@ public class TaskServiceTest {
         testTask.setTitle("Тестовая задача");
         testTask.setDescription("Описание тестовой задачи");
         testTask.setCompleted(false);
+        testTask.setDeleted(false);
+
+        completedTask = new Task();
+        completedTask.setId("task2");
+        completedTask.setUserId(userId);
+        completedTask.setTitle("Завершенная задача");
+        completedTask.setDescription("Описание завершенной задачи");
+        completedTask.setCompleted(true);
+        completedTask.setDeleted(false);
+
+        deletedTask = new Task();
+        deletedTask.setId("task3");
+        deletedTask.setUserId(userId);
+        deletedTask.setTitle("Удаленная задача");
+        deletedTask.setDescription("Описание удаленной задачи");
+        deletedTask.setCompleted(false);
+        deletedTask.setDeleted(true);
     }
 
     @Test
-    public void getAllTasksByUserId_TasksExist_ReturnsTasks() {
-        List<Task> tasks = Arrays.asList(testTask);
+    public void getAllTasksByUserId_TasksExist_ReturnsAllTasks() {
+        List<Task> tasks = Arrays.asList(testTask, completedTask);
         when(taskRepository.findByUserId(userId)).thenReturn(tasks);
 
         List<Task> result = taskService.getAllTasksByUserId(userId);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertEquals("Тестовая задача", result.get(0).getTitle());
+        assertEquals("Завершенная задача", result.get(1).getTitle());
         verify(taskRepository).findByUserId(userId);
     }
 
     @Test
+    public void getAllTasksByUserId_NoTasks_ReturnsEmptyList() {
+        when(taskRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.getAllTasksByUserId(userId);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findByUserId(userId);
+    }
+
+    @Test
+    public void getAllTasksByUserId_DifferentUser_ReturnsEmptyList() {
+        when(taskRepository.findByUserId(anotherUserId)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.getAllTasksByUserId(anotherUserId);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findByUserId(anotherUserId);
+    }
+
+    @Test
+    public void getAllTasksByUserId_NullUserId_ReturnsEmptyList() {
+        when(taskRepository.findByUserId(null)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.getAllTasksByUserId(null);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findByUserId(null);
+    }
+
+    @Test
     public void getPendingTasksByUserId_PendingTasksExist_ReturnsPendingTasks() {
-        List<Task> tasks = Arrays.asList(testTask);
-        when(taskRepository.findPendingByUserId(userId)).thenReturn(tasks);
+        List<Task> pendingTasks = Arrays.asList(testTask);
+        when(taskRepository.findPendingByUserId(userId)).thenReturn(pendingTasks);
 
         List<Task> result = taskService.getPendingTasksByUserId(userId);
 
@@ -73,16 +127,83 @@ public class TaskServiceTest {
     }
 
     @Test
+    public void getPendingTasksByUserId_NoPendingTasks_ReturnsEmptyList() {
+        when(taskRepository.findPendingByUserId(userId)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.getPendingTasksByUserId(userId);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findPendingByUserId(userId);
+    }
+
+    @Test
+    public void getPendingTasksByUserId_OnlyCompletedTasks_ReturnsEmptyList() {
+        when(taskRepository.findPendingByUserId(userId)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.getPendingTasksByUserId(userId);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findPendingByUserId(userId);
+    }
+
+    @Test
     public void createTask_ValidTask_ReturnsCreatedTask() {
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
-        when(notificationService.createNotification(any(Notification.class))).thenReturn(new Notification(userId, "task1", "Task created!"));
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
 
         Task result = taskService.createTask(testTask);
 
         assertNotNull(result);
         assertEquals("Тестовая задача", result.getTitle());
+        assertEquals(userId, result.getUserId());
+        assertEquals(false, result.isCompleted());
         verify(taskRepository).save(testTask);
-        verify(notificationService).createNotification(any(Notification.class));
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void createTask_TaskWithoutDescription_ReturnsCreatedTask() {
+        Task taskWithoutDescription = new Task();
+        taskWithoutDescription.setUserId(userId);
+        taskWithoutDescription.setTitle("Задача без описания");
+        
+        when(taskRepository.save(any(Task.class))).thenReturn(taskWithoutDescription);
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+
+        Task result = taskService.createTask(taskWithoutDescription);
+
+        assertNotNull(result);
+        assertEquals("Задача без описания", result.getTitle());
+        assertNull(result.getDescription());
+        verify(taskRepository).save(taskWithoutDescription);
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void createTask_NullTask_ThrowsException() {
+        when(taskRepository.save(null)).thenThrow(new IllegalArgumentException("Task cannot be null"));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            taskService.createTask(null);
+        });
+
+        verify(taskRepository).save(null);
+        verify(taskEventProducer, never()).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void createTask_KafkaProducerFails_StillReturnsTask() {
+        when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        doThrow(new RuntimeException("Kafka producer error")).when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+
+        assertThrows(RuntimeException.class, () -> {
+            taskService.createTask(testTask);
+        });
+
+        verify(taskRepository).save(testTask);
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
     }
 
     @Test
@@ -90,13 +211,102 @@ public class TaskServiceTest {
         String taskId = "task1";
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
-        when(notificationService.createNotification(any(Notification.class))).thenReturn(new Notification(userId, taskId, "Task deleted!"));
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
 
         taskService.deleteTask(taskId);
 
         assertEquals(true, testTask.isDeleted());
         verify(taskRepository).findById(taskId);
         verify(taskRepository).save(testTask);
-        verify(notificationService).createNotification(any(Notification.class));
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void deleteTask_TaskNotExists_DoesNothing() {
+        String taskId = "nonExistentTask";
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+        taskService.deleteTask(taskId);
+
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository, never()).save(any(Task.class));
+        verify(taskEventProducer, never()).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void deleteTask_AlreadyDeletedTask_StillMarksAsDeleted() {
+        String taskId = "task3";
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(deletedTask));
+        when(taskRepository.save(any(Task.class))).thenReturn(deletedTask);
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+
+        taskService.deleteTask(taskId);
+
+        assertEquals(true, deletedTask.isDeleted());
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository).save(deletedTask);
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void deleteTask_NullTaskId_DoesNothing() {
+        when(taskRepository.findById(null)).thenReturn(Optional.empty());
+
+        taskService.deleteTask(null);
+
+        verify(taskRepository).findById(null);
+        verify(taskRepository, never()).save(any(Task.class));
+        verify(taskEventProducer, never()).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void deleteTask_EmptyTaskId_DoesNothing() {
+        when(taskRepository.findById("")).thenReturn(Optional.empty());
+
+        taskService.deleteTask("");
+
+        verify(taskRepository).findById("");
+        verify(taskRepository, never()).save(any(Task.class));
+        verify(taskEventProducer, never()).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void deleteTask_KafkaProducerFails_TaskStillDeleted() {
+        String taskId = "task1";
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        doThrow(new RuntimeException("Kafka producer error")).when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+
+        assertThrows(RuntimeException.class, () -> {
+            taskService.deleteTask(taskId);
+        });
+
+        assertEquals(true, testTask.isDeleted());
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository).save(testTask);
+        verify(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+    }
+
+    @Test
+    public void multipleOperations_VerifyInteractions() {
+        // Создание задачи
+        when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
+
+        taskService.createTask(testTask);
+
+        // Получение задач
+        when(taskRepository.findByUserId(userId)).thenReturn(Arrays.asList(testTask));
+        taskService.getAllTasksByUserId(userId);
+
+        // Удаление задачи
+        when(taskRepository.findById("task1")).thenReturn(Optional.of(testTask));
+        taskService.deleteTask("task1");
+
+        // Проверяем все взаимодействия
+        verify(taskRepository, times(2)).save(any(Task.class)); // create + delete
+        verify(taskRepository).findByUserId(userId);
+        verify(taskRepository).findById("task1");
+        verify(taskEventProducer, times(2)).sendTaskEvent(any(TaskEvent.class)); // create + delete
     }
 }

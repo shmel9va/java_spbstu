@@ -1,0 +1,37 @@
+FROM openjdk:21-jdk-slim
+
+# Установка необходимых пакетов
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка Gradle
+ENV GRADLE_VERSION=8.5
+RUN wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip \
+    && unzip gradle-${GRADLE_VERSION}-bin.zip \
+    && mv gradle-${GRADLE_VERSION} /opt/gradle \
+    && rm gradle-${GRADLE_VERSION}-bin.zip
+
+# Добавление Gradle в PATH
+ENV PATH="/opt/gradle/bin:${PATH}"
+
+# Создание рабочей директории
+WORKDIR /workspace
+
+# Копирование gradle wrapper
+COPY gradlew .
+COPY gradle/ gradle/
+
+# Делаем gradlew исполняемым
+RUN chmod +x gradlew
+
+# Копирование build.gradle и settings.gradle для кеширования зависимостей
+COPY build.gradle .
+COPY settings.gradle .
+
+# Загрузка зависимостей
+RUN ./gradlew dependencies --no-daemon
+
+# Команда по умолчанию
+CMD ["./gradlew", "test", "--info"] 

@@ -8,5 +8,4 @@ public interface NotificationService {
     List<Notification> getAllNotificationsByUserId(String userId);
     List<Notification> getPendingNotificationsByUserId(String userId);
     void markNotificationAsRead(String id);
-    Notification createNotification(Notification notification);
 }

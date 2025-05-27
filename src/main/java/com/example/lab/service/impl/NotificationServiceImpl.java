@@ -33,8 +33,8 @@ public class NotificationServiceImpl implements NotificationService {
         notificationRepository.markAsRead(id);
     }
 
-    @Override
-    public Notification createNotification(Notification notification) {
+    // Внутренний метод для создания уведомлений через Kafka listener
+    public Notification createNotificationInternal(Notification notification) {
         return notificationRepository.save(notification);
     }
 }

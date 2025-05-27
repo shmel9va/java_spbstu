@@ -6,6 +6,8 @@ import com.example.lab.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -29,7 +31,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User login(String username, String password) {
         User user = userRepository.findByUsername(username);
-        if (user != null && user.getPassword().equals(password)) {
+        if (user != null && Objects.equals(user.getPassword(), password)) {
             return user;
         }
         return null;

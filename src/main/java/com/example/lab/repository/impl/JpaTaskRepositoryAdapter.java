@@ -3,6 +3,7 @@ package com.example.lab.repository.impl;
 import com.example.lab.model.Task;
 import com.example.lab.repository.TaskRepository;
 import com.example.lab.repository.jpa.JpaTaskRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
@@ -44,6 +45,7 @@ public class JpaTaskRepositoryAdapter implements TaskRepository {
     }
 
     @Override
+    @Cacheable(value = "tasks", key = "#id")
     public Optional<Task> findById(String id) {
         return jpaTaskRepository.findById(id);
     }

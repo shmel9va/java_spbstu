@@ -1,6 +1,7 @@
 package com.example.lab.service;
 
 import com.example.lab.model.Task;
+import com.example.lab.model.TaskEvent;
 import com.example.lab.repository.TaskRepository;
 import com.example.lab.service.impl.TaskServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,7 +28,7 @@ public class TaskServiceCacheTest {
     private TaskRepository taskRepository;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskEventProducer taskEventProducer;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -74,23 +76,25 @@ public class TaskServiceCacheTest {
     @Test
     public void createTask_ClearsCache() {
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
 
         taskService.createTask(testTask);
 
         verify(taskRepository, times(1)).save(testTask);
-        verify(notificationService, times(1)).createNotification(any());
+        verify(taskEventProducer, times(1)).sendTaskEvent(any(TaskEvent.class));
     }
 
     @Test
     public void deleteTask_ClearsCache() {
         when(taskRepository.findById("task1")).thenReturn(java.util.Optional.of(testTask));
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        doNothing().when(taskEventProducer).sendTaskEvent(any(TaskEvent.class));
 
         taskService.deleteTask("task1");
 
         assertTrue(testTask.isDeleted());
         verify(taskRepository, times(1)).findById("task1");
         verify(taskRepository, times(1)).save(testTask);
-        verify(notificationService, times(1)).createNotification(any());
+        verify(taskEventProducer, times(1)).sendTaskEvent(any(TaskEvent.class));
     }
 } 
