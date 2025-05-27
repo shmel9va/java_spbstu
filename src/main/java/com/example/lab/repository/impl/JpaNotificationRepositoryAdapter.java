@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-@Profile("database")
+@Profile({"database", "mysql"})
 public class JpaNotificationRepositoryAdapter implements NotificationRepository {
     
     private final JpaNotificationRepository jpaNotificationRepository;
