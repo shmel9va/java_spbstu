@@ -27,4 +27,14 @@ public class ProfileConfig {
             System.out.println("============================");
         };
     }
+
+    @Bean
+    @Profile("mysql")
+    public CommandLineRunner mysqlProfileInfo() {
+        return args -> {
+            System.out.println("============================");
+            System.out.println("Running with MySQL profile");
+            System.out.println("============================");
+        };
+    }
 }
