@@ -46,7 +46,7 @@ public class TaskServiceImpl implements TaskService {
         @CacheEvict(value = "tasks", key = "'user_pending_' + #task.userId")
     })
     public Task createTask(Task task) {
-        System.out.println("🗑️ ОЧИСТКА КЭША при создании задачи для userId: " + task.getUserId());
+        System.out.println("ОЧИСТКА КЭША при создании задачи для userId: " + task.getUserId());
         Task savedTask = taskRepository.save(task);
 
         notificationService.createNotification(
@@ -66,7 +66,7 @@ public class TaskServiceImpl implements TaskService {
     public Task deleteTask(String id) {
         Task task = taskRepository.findById(id).orElse(null);
         if (task != null) {
-            System.out.println("🗑️ ОЧИСТКА КЭША при удалении задачи для userId: " + task.getUserId());
+            System.out.println("ОЧИСТКА КЭША при удалении задачи для userId: " + task.getUserId());
             task.setDeleted(true);
             Task savedTask = taskRepository.save(task);
 
@@ -82,7 +82,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Cacheable(value = "tasks", key = "'task_' + #id")
     public Task getTaskById(String id) {
-        System.out.println("🔥 ПОПАДАНИЕ В БД! getTaskById для taskId: " + id);
+        System.out.println("ПОПАДАНИЕ В БД! getTaskById для taskId: " + id);
         return taskRepository.findById(id).orElse(null);
     }
 }
