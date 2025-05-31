@@ -39,8 +39,20 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable String id) {
-        taskService.deleteTask(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Task> deleteTask(@PathVariable String id) {
+        Task deletedTask = taskService.deleteTask(id);
+        if (deletedTask != null) {
+            return ResponseEntity.ok(deletedTask);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/id/{id}")
+    public ResponseEntity<Task> getTaskById(@PathVariable String id) {
+        Task task = taskService.getTaskById(id);
+        if (task != null) {
+            return ResponseEntity.ok(task);
+        }
+        return ResponseEntity.notFound().build();
     }
 }

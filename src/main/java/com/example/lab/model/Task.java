@@ -4,13 +4,15 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import java.io.Serializable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "tasks")
-public class Task {
+public class Task implements Serializable {
     @Id
     private String id;
     @Column(name = "user_id")
@@ -24,8 +26,10 @@ public class Task {
     @Column(name = "deleted")
     private boolean deleted;
     @Column(name = "creation_date")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS")
     private LocalDateTime creationDate;
     @Column(name = "target_date")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS")
     private LocalDateTime targetDate;
 
     public Task() {
