@@ -302,3 +302,131 @@ redis:
 - `user_pending_{userId}` - незавершенные задачи пользователя  
 - `task_{taskId}` - конкретная задача по ID
 
+---
+
+## Внедрение Kafka - Step 7
+
+### Описание
+В рамках Step 7 была реализована асинхронная система обмена сообщениями с использованием Apache Kafka для полного разделения сервисов и обеспечения надежной доставки уведомлений.
+
+### Основные изменения:
+
+#### 1. **Настройка Kafka инфраструктуры**
+- Добавлен Kafka и Zookeeper в `docker-compose.yml`
+- Настроена сетевая конфигурация между контейнерами
+- Добавлены зависимости Spring Kafka в `build.gradle`
+
+#### 2. **Kafka Events система**
+```java
+// TaskEvent.java - событие для Kafka
+public record TaskEvent(
+    TaskEventTypeEnum eventType,
+    String taskId,
+    String userId
+) {}
+
+// TaskEventTypeEnum.java - типы событий
+public enum TaskEventTypeEnum {
+    CREATE, DELETE
+}
+```
+
+#### 3. **Producer в TaskService**
+```java
+@Service
+public class TaskServiceImpl implements TaskService {
+    private final KafkaTemplate<String, TaskEvent> kafkaTemplate;
+    
+    public Task createTask(Task task) {
+        Task savedTask = taskRepository.save(task);
+        // Отправка события в Kafka
+        kafkaTemplate.send(taskEventTopic, 
+            new TaskEvent(TaskEventTypeEnum.CREATE, savedTask.getId(), savedTask.getUserId()));
+        return savedTask;
+    }
+}
+```
+
+#### 4. **Consumer в NotificationService**
+```java
+@Service
+public class NotificationServiceImpl implements NotificationService {
+    
+    @KafkaListener(topics = "${kafka.topic.task-event}")
+    @Transactional
+    public void handleTaskEvent(TaskEvent taskEvent) {
+        String message = switch (taskEvent.eventType()) {
+            case CREATE -> "Task created!";
+            case DELETE -> "Task deleted!";
+        };
+        Notification notification = new Notification(
+            taskEvent.userId(), taskEvent.taskId(), message);
+        createNotification(notification);
+    }
+}
+```
+
+#### 5. **Конфигурация Kafka**
+```properties
+# application.properties
+spring.kafka.bootstrap-servers=kafka:9092
+spring.kafka.consumer.group-id=notification-group
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
+kafka.topic.task-event=task-events
+```
+
+### Ключевые особенности реализации:
+
+**Полная изоляция сервисов** - NotificationService получает уведомления ТОЛЬКО через Kafka  
+**Асинхронная обработка** - события обрабатываются в отдельных потоках  
+**Транзакционность** - Kafka listener помечен `@Transactional` для надежности  
+**Обработка CREATE/DELETE** - поддержка всех типов событий задач  
+**Автоматическое создание топиков** - через KafkaTopicConfig  
+
+### Тестирование Kafka messaging:
+
+1. **Подготовка (создание пользователя):**
+```bash
+# Создать пользователя
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"username":"testuser","email":"test@example.com","password":"password123"}' \
+     http://localhost:8080/api/users
+
+# Получить пользователя и его ID
+curl http://localhost:8080/api/users/testuser
+# Скопировать "id" из ответа для следующих команд
+```
+
+2. **Тест с работающим Kafka:**
+```bash
+# Создать задачу (замените USER_ID на реальный ID из предыдущего шага)
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"title":"Test Task","description":"Test description","userId":"USER_ID"}' \
+     http://localhost:8080/api/tasks
+
+# Проверить уведомления (замените USER_ID)
+curl http://localhost:8080/api/notifications/USER_ID
+# Результат: уведомление создано автоматически через Kafka
+```
+
+3. **Тест без Kafka (проверка изоляции):**
+```bash
+# Остановить Kafka
+docker stop java_spbstu-kafka-1
+
+# Создать задачу (замените USER_ID)
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"title":"Task without Kafka","description":"No notification","userId":"USER_ID"}' \
+     http://localhost:8080/api/tasks
+# Задача создается успешно
+
+# Проверить уведомления (замените USER_ID)
+curl http://localhost:8080/api/notifications/USER_ID
+# Результат: новых уведомлений НЕТ - только старые
+
+# Запустить Kafka обратно
+docker start java_spbstu-kafka-1
+```
+

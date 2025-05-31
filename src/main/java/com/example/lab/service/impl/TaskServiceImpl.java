@@ -1,14 +1,17 @@
 package com.example.lab.service.impl;
 
 import com.example.lab.model.Task;
-import com.example.lab.model.Notification;
+import com.example.lab.kafkaEvents.TaskEvent;
+import com.example.lab.kafkaEvents.TaskEventTypeEnum;
 import com.example.lab.repository.TaskRepository;
 import com.example.lab.service.TaskService;
 import com.example.lab.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,12 +21,18 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final NotificationService notificationService;
+    private final KafkaTemplate<String, TaskEvent> kafkaTemplate;
+
+    @Value("${kafka.topic.task-event}")
+    private String taskEventTopic;
 
     @Autowired
     public TaskServiceImpl(TaskRepository taskRepository,
-                           NotificationService notificationService) {
+                           NotificationService notificationService,
+                           KafkaTemplate<String, TaskEvent> kafkaTemplate) {
         this.taskRepository = taskRepository;
         this.notificationService = notificationService;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -49,10 +58,7 @@ public class TaskServiceImpl implements TaskService {
         System.out.println("ОЧИСТКА КЭША при создании задачи для userId: " + task.getUserId());
         Task savedTask = taskRepository.save(task);
 
-        notificationService.createNotification(
-                new Notification(savedTask.getUserId(), savedTask.getId(), "Task created!")
-        );
-
+        kafkaTemplate.send(taskEventTopic, new TaskEvent(TaskEventTypeEnum.CREATE, savedTask.getId(), savedTask.getUserId()));
 
         return savedTask;
     }
@@ -70,9 +76,7 @@ public class TaskServiceImpl implements TaskService {
             task.setDeleted(true);
             Task savedTask = taskRepository.save(task);
 
-            notificationService.createNotification(
-                    new Notification(task.getUserId(), task.getId(), "Task deleted!")
-            );
+            kafkaTemplate.send(taskEventTopic, new TaskEvent(TaskEventTypeEnum.DELETE, task.getId(), task.getUserId()));
             
             return savedTask;
         }
