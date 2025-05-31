@@ -5,7 +5,7 @@ COPY . .
 
 RUN ./gradlew clean bootJar -x test --no-daemon
 
-FROM eclipse-temurin:21-jdk-jammy AS runtime
+FROM eclipse-temurin:17-jdk-jammy AS runtime
 WORKDIR /app
 
 COPY --from=builder /workspace/build/libs/*.jar app.jar

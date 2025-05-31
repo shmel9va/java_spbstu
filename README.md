@@ -173,3 +173,132 @@
 - `mysql` - использует MySQL базу данных через JPA репозитории с миграциями Flyway
 
 Для запуска с нужным профилем используйте параметр:
+
+---
+# Внедрение Redis кэширования - Step 6
+
+## Описание
+
+В рамках шага 6 была реализована система кэширования с использованием Redis для оптимизации производительности операций получения задач. Кэш автоматически обновляется при создании/удалении задач и имеет настраиваемое время жизни.
+
+## Основные изменения:
+
+### 1. **Добавлены зависимости Redis:**
+```gradle
+implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+implementation 'org.springframework.boot:spring-boot-starter-cache'
+```
+
+### 2. **Конфигурация кэширования в application.properties:**
+```properties
+# Redis Configuration
+spring.cache.type=redis
+spring.data.redis.host=redis
+spring.data.redis.port=6379
+spring.data.redis.timeout=2000
+spring.data.redis.connect-timeout=2000
+
+# Cache Configuration  
+spring.cache.redis.time-to-live=60000        # TTL 60 секунд
+spring.cache.cache-names=tasks
+spring.cache.redis.key-prefix=task_cache_
+spring.cache.redis.use-key-prefix=true
+spring.cache.redis.enable-statistics=true
+```
+
+### 3. **Включение кэширования:**
+- Добавлена аннотация `@EnableCaching` в главный класс `LabApplication`
+
+### 4. **Кэширование в сервисном слое:**
+Добавлены аннотации кэширования в `TaskServiceImpl`:
+
+```java
+@Cacheable(value = "tasks", key = "'user_' + #userId")
+public List<Task> getAllTasksByUserId(String userId)
+
+@Cacheable(value = "tasks", key = "'user_pending_' + #userId")  
+public List<Task> getPendingTasksByUserId(String userId)
+
+@Cacheable(value = "tasks", key = "'task_' + #id")
+public Task getTaskById(String id)
+
+@CacheEvict(value = "tasks", key = "'user_' + #task.userId")
+public Task createTask(Task task)  // Очистка кэша при создании
+
+@CacheEvict(value = "tasks", key = "'task_' + #id")
+public Task deleteTask(String id)  // Очистка кэша при удалении
+```
+
+### 5. **Обеспечение сериализации:**
+- Модель `Task` реализует интерфейс `Serializable` для хранения в Redis
+
+### 6. **Обновлен Docker Compose:**
+```yaml
+redis:
+  image: redis:latest
+  ports:
+    - "6379:6379"
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+```
+
+## Как работает кэширование:
+
+1. **Первый запрос** - попадает в базу данных, результат сохраняется в Redis
+2. **Последующие запросы** - возвращаются из кэша (быстрее)
+3. **Автоматическая очистка** - кэш очищается при создании/удалении задач
+4. **TTL (Time To Live)** - записи автоматически удаляются через 60 секунд
+
+## Тестирование кэша:
+
+Для проверки работы кэширования можно:
+
+1. **Запустить приложение:**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+2. **Создать пользователя и задачу:**
+   ```bash
+   # Создать пользователя
+   curl -X POST "http://localhost:8080/api/users" \
+     -H "Content-Type: application/json" \
+     -d '{"email": "test@example.com", "password": "password123"}'
+   
+   # Создать задачу  
+   curl -X POST "http://localhost:8080/api/tasks" \
+     -H "Content-Type: application/json" \
+     -d '{"userId": "USER_ID", "title": "Test Task", "description": "Cache test"}'
+   ```
+
+3. **Тестировать кэширование:**
+   ```bash
+   # Первый запрос (попадание в БД)
+   curl "http://localhost:8080/api/tasks/user/USER_ID"
+   
+   # Второй запрос (из кэша - быстрее)
+   curl "http://localhost:8080/api/tasks/user/USER_ID"
+   ```
+
+4. **Проверить логи приложения:**
+   ```bash
+   docker logs java_spbstu-app-1 --tail=20
+   ```
+
+## Преимущества реализованного кэширования:
+
+- **Повышение производительности** - снижение нагрузки на базу данных
+- **Автоматическое управление** - кэш обновляется при изменении данных
+- **Настраиваемое время жизни** - гибкая конфигурация TTL
+- **Fallback механизм** - при недоступности Redis запросы идут в БД
+- **Масштабируемость** - Redis может быть вынесен на отдельный сервер
+
+## Ключи кэша:
+
+- `user_{userId}` - все задачи пользователя
+- `user_pending_{userId}` - незавершенные задачи пользователя  
+- `task_{taskId}` - конкретная задача по ID
+
