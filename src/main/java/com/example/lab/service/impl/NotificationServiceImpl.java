@@ -2,7 +2,6 @@ package com.example.lab.service.impl;
 
 import com.example.lab.model.Notification;
 import com.example.lab.kafkaEvents.TaskEvent;
-import com.example.lab.kafkaEvents.TaskEventTypeEnum;
 import com.example.lab.repository.NotificationRepository;
 import com.example.lab.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
