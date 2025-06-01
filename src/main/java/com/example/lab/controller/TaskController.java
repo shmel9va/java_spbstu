@@ -55,4 +55,13 @@ public class TaskController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<Task> markTaskAsCompleted(@PathVariable String id) {
+        Task completedTask = taskService.markTaskAsCompleted(id);
+        if (completedTask != null) {
+            return ResponseEntity.ok(completedTask);
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

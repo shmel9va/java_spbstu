@@ -6,6 +6,7 @@ import com.example.lab.repository.jpa.JpaTaskRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,4 +49,8 @@ public class JpaTaskRepositoryAdapter implements TaskRepository {
         return jpaTaskRepository.findById(id);
     }
 
+    @Override
+    public List<Task> findOverdueTasks(LocalDateTime currentTime) {
+        return jpaTaskRepository.findOverdueTasks(currentTime);
+    }
 }

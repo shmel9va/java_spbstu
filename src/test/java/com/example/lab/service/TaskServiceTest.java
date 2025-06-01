@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -315,5 +316,89 @@ public class TaskServiceTest {
         verify(taskRepository).findByUserId(userId);
         verify(taskRepository).findById("task1");
         verify(notificationService, times(2)).createNotification(any(Notification.class)); // create + delete
+    }
+
+    // Новые тесты для Step 8
+    
+    @Test
+    public void findOverdueTasks_OverdueTasksExist_ReturnsOverdueTasks() {
+        LocalDateTime currentTime = LocalDateTime.now();
+        Task overdueTask1 = new Task(userId, "Просроченная задача 1", "Описание", currentTime.minusDays(1));
+        Task overdueTask2 = new Task(userId, "Просроченная задача 2", "Описание", currentTime.minusHours(2));
+        List<Task> overdueTasks = Arrays.asList(overdueTask1, overdueTask2);
+        
+        when(taskRepository.findOverdueTasks(currentTime)).thenReturn(overdueTasks);
+
+        List<Task> result = taskService.findOverdueTasks(currentTime);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals("Просроченная задача 1", result.get(0).getTitle());
+        assertEquals("Просроченная задача 2", result.get(1).getTitle());
+        verify(taskRepository).findOverdueTasks(currentTime);
+    }
+
+    @Test
+    public void findOverdueTasks_NoOverdueTasks_ReturnsEmptyList() {
+        LocalDateTime currentTime = LocalDateTime.now();
+        when(taskRepository.findOverdueTasks(currentTime)).thenReturn(Collections.emptyList());
+
+        List<Task> result = taskService.findOverdueTasks(currentTime);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(taskRepository).findOverdueTasks(currentTime);
+    }
+
+    @Test
+    public void markTaskAsCompleted_TaskExists_MarksTaskAsCompleted() {
+        String taskId = "task1";
+        Task taskToComplete = new Task(userId, "Задача для завершения", "Описание", LocalDateTime.now().plusDays(1));
+        taskToComplete.setId(taskId);
+        taskToComplete.setCompleted(false);
+        
+        Task completedTask = new Task(userId, "Задача для завершения", "Описание", LocalDateTime.now().plusDays(1));
+        completedTask.setId(taskId);
+        completedTask.setCompleted(true);
+        
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(taskToComplete));
+        when(taskRepository.save(any(Task.class))).thenReturn(completedTask);
+
+        Task result = taskService.markTaskAsCompleted(taskId);
+
+        assertNotNull(result);
+        assertEquals(taskId, result.getId());
+        assertEquals(true, result.isCompleted());
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository).save(any(Task.class));
+    }
+
+    @Test
+    public void markTaskAsCompleted_TaskNotExists_ReturnsNull() {
+        String taskId = "nonExistentTask";
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+        Task result = taskService.markTaskAsCompleted(taskId);
+
+        assertNull(result);
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    public void markTaskAsCompleted_AlreadyCompletedTask_StillMarksAsCompleted() {
+        String taskId = "task2";
+        completedTask.setId(taskId);
+        
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(completedTask));
+        when(taskRepository.save(any(Task.class))).thenReturn(completedTask);
+
+        Task result = taskService.markTaskAsCompleted(taskId);
+
+        assertNotNull(result);
+        assertEquals(taskId, result.getId());
+        assertEquals(true, result.isCompleted());
+        verify(taskRepository).findById(taskId);
+        verify(taskRepository).save(any(Task.class));
     }
 }

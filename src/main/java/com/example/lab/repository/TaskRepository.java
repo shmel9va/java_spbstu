@@ -1,6 +1,7 @@
 package com.example.lab.repository;
 
 import com.example.lab.model.Task;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,4 +11,5 @@ public interface TaskRepository {
     Task save(Task task);
     void deleteById(String id);
     Optional<Task> findById(String id);
+    List<Task> findOverdueTasks(LocalDateTime currentTime);
 }
