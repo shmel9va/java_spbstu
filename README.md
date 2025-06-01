@@ -430,3 +430,167 @@ curl http://localhost:8080/api/notifications/USER_ID
 docker start java_spbstu-kafka-1
 ```
 
+---
+
+## Планировщик задач и асинхронная обработка - Step 8
+
+### Описание
+В рамках Step 8 была реализована система планировщика задач с использованием `@Scheduled` для периодической проверки просроченных задач и `@Async` для асинхронной обработки уведомлений.
+
+### Основные изменения:
+
+#### 1. **Включение планировщика и асинхронности**
+```java
+@SpringBootApplication
+@EnableCaching
+@EnableAsync         // Включение асинхронной обработки
+@EnableScheduling    // Включение планировщика задач
+public class LabApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(LabApplication.class, args);
+    }
+}
+```
+
+#### 2. **Создание SchedulerService**
+```java
+public interface SchedulerService {
+    // Периодическая проверка просроченных задач
+    void checkOverdueTasks();
+    
+    // Асинхронное создание уведомления о просроченной задаче
+    void createOverdueNotificationAsync(Task task);
+    
+    // Асинхронная пометка задач как завершенных
+    void markTasksAsCompletedAsync(List<String> taskIds);
+}
+```
+
+#### 3. **Реализация планировщика**
+```java
+@Service
+public class SchedulerServiceImpl implements SchedulerService {
+
+    @Override
+    @Scheduled(fixedRate = 60000) // Каждую минуту
+    public void checkOverdueTasks() {
+        LocalDateTime currentTime = LocalDateTime.now();
+        List<Task> overdueTasks = taskService.findOverdueTasks(currentTime);
+        
+        if (!overdueTasks.isEmpty()) {
+            for (Task task : overdueTasks) {
+                createOverdueNotificationAsync(task);
+            }
+        }
+    }
+
+    @Override
+    @Async
+    public void createOverdueNotificationAsync(Task task) {
+        String message = String.format("задача '%s' просрочена! целевая дата: %s", 
+                                      task.getTitle(), task.getTargetDate());
+        
+        Notification notification = new Notification();
+        notification.setUserId(task.getUserId());
+        notification.setTaskId(task.getId());
+        notification.setMessage(message);
+        
+        notificationService.createNotification(notification);
+    }
+}
+```
+
+#### 4. **Расширение TaskService**
+Добавлены методы для работы с просроченными задачами:
+```java
+public interface TaskService {
+    // Существующие методы...
+    
+    // Новые методы для планировщика
+    List<Task> findOverdueTasks(LocalDateTime currentTime);
+    Task markTaskAsCompleted(String taskId);
+}
+```
+
+#### 5. **Обновление репозиториев**
+Добавлен метод поиска просроченных задач:
+```java
+// JPA Repository
+@Query("SELECT t FROM Task t WHERE t.targetDate < :currentTime AND t.completed = false AND t.deleted = false")
+List<Task> findOverdueTasks(@Param("currentTime") LocalDateTime currentTime);
+
+// InMemory Repository  
+public List<Task> findOverdueTasks(LocalDateTime currentTime) {
+    return tasks.values().stream()
+            .filter(task -> task.getTargetDate() != null && 
+                           task.getTargetDate().isBefore(currentTime) &&
+                           !task.isCompleted() && 
+                           !task.isDeleted())
+            .collect(Collectors.toList());
+}
+```
+
+#### 6. **Новый API эндпоинт**
+Добавлен эндпоинт для пометки задач как завершенных:
+```java
+@PutMapping("/{id}/complete")
+public ResponseEntity<Task> markTaskAsCompleted(@PathVariable String id) {
+    Task completedTask = taskService.markTaskAsCompleted(id);
+    if (completedTask != null) {
+        return ResponseEntity.ok(completedTask);
+    }
+    return ResponseEntity.notFound().build();
+}
+```
+
+### Как работает планировщик:
+
+1. **Автоматический запуск** - каждую минуту (60000 мс) планировщик проверяет просроченные задачи
+2. **Поиск просроченных задач** - находит все задачи, где `targetDate < currentTime` и задача не завершена
+3. **Асинхронное создание уведомлений** - для каждой просроченной задачи создается уведомление в отдельном потоке
+4. **Логирование** - все операции планировщика логируются в консоль
+
+### Тестирование планировщика:
+
+1. **Создать задачу с просроченной датой:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+     -d '{
+       "title":"Просроченная задача",
+       "description":"Тест планировщика",
+       "userId":"USER_ID",
+       "targetDate":"2024-01-01T10:00:00"
+     }' \
+     http://localhost:8080/api/tasks
+```
+
+2. **Запустить приложение и наблюдать логи:**
+```bash
+docker-compose up -d --build
+docker logs -f java_spbstu-app-1
+```
+
+3. **Проверить созданные уведомления:**
+```bash
+curl http://localhost:8080/api/notifications/USER_ID
+```
+
+4. **Пометить задачу как завершенную:**
+```bash
+curl -X PUT http://localhost:8080/api/tasks/TASK_ID/complete
+```
+
+### Написанные тесты:
+
+- **SchedulerServiceTest** - тесты для планировщика
+- **Расширенный TaskServiceTest** - тесты для новых методов поиска просроченных задач
+- **Полное покрытие** - все новые методы покрыты unit-тестами
+
+### Ключевые особенности:
+
+- **Фоновая работа** - планировщик работает автоматически без вмешательства пользователя
+- **Асинхронность** - уведомления создаются в отдельных потоках для повышения производительности
+- **Масштабируемость** - можно легко изменить интервал проверки или добавить дополнительную логику
+- **Отказоустойчивость** - обработка ошибок при создании уведомлений
+- **Кэширование** - новые методы интегрированы с системой кэширования Redis
+

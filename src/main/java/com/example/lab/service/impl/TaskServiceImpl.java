@@ -14,6 +14,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -88,5 +89,27 @@ public class TaskServiceImpl implements TaskService {
     public Task getTaskById(String id) {
         System.out.println("ПОПАДАНИЕ В БД! getTaskById для taskId: " + id);
         return taskRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public List<Task> findOverdueTasks(LocalDateTime currentTime) {
+        System.out.println("поиск просроченных задач на время: " + currentTime);
+        return taskRepository.findOverdueTasks(currentTime);
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "tasks", key = "'task_' + #taskId"),
+        @CacheEvict(value = "tasks", key = "'user_' + #result.userId", condition = "#result != null"),
+        @CacheEvict(value = "tasks", key = "'user_pending_' + #result.userId", condition = "#result != null")
+    })
+    public Task markTaskAsCompleted(String taskId) {
+        Task task = taskRepository.findById(taskId).orElse(null);
+        if (task != null) {
+            System.out.println("пометка задачи как завершенной: " + taskId);
+            task.setCompleted(true);
+            return taskRepository.save(task);
+        }
+        return null;
     }
 }
